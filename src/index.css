@@ -1,0 +1,142 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 20% 98%;
+    --foreground: 24 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 10% 10%;
+    --primary: 24 10% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 40 16% 94%;
+    --secondary-foreground: 24 10% 10%;
+    --muted: 40 14% 94%;
+    --muted-foreground: 24 6% 42%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 24 10% 10%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 12% 88%;
+    --input: 30 12% 88%;
+    --ring: 24 10% 10%;
+    --radius: 0.25rem;
+    --font-heading: 'Fraunces', ui-serif, Georgia, serif;
+    --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Fraunces', ui-serif, Georgia, serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --accent-color: #C2410C;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 24 10% 6%;
+    --foreground: 40 20% 96%;
+    --card: 24 10% 8%;
+    --card-foreground: 40 20% 96%;
+    --popover: 24 10% 8%;
+    --popover-foreground: 40 20% 96%;
+    --primary: 40 20% 96%;
+    --primary-foreground: 24 10% 10%;
+    --secondary: 24 8% 14%;
+    --secondary-foreground: 40 20% 96%;
+    --muted: 24 8% 14%;
+    --muted-foreground: 40 10% 65%;
+    --accent: 24 8% 14%;
+    --accent-foreground: 40 20% 96%;
+    --destructive: 0 62% 40%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 24 8% 18%;
+    --input: 24 8% 18%;
+    --ring: 40 20% 96%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+    --accent: var(--accent-color);
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* Content images fill their containers without distortion */
+  img {
+    object-fit: cover;
+  }
+}
+
+@layer components {
+  /* Public form inputs */
+  .input-base {
+    @apply w-full px-0 py-2 bg-transparent border-0 border-b border-border text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-[var(--accent)] transition-colors text-base;
+  }
+  .input-base option { @apply bg-background text-foreground; }
+
+  /* Admin form helpers */
+  .admin-input {
+    @apply w-full h-9 px-3 rounded-md border border-slate-200 bg-white text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400;
+  }
+  .admin-label {
+    @apply text-xs font-medium text-slate-600 mb-1.5 block;
+  }
+}
+
+@layer components {
+  /* Rich text output (public) */
+  .prose-editorial {
+    @apply text-foreground leading-relaxed;
+  }
+  .prose-portfolio {
+    @apply text-foreground/90 leading-relaxed space-y-4 max-w-full min-w-0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .prose-portfolio > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .prose-portfolio p { @apply text-base sm:text-lg text-muted-foreground; }
+  .prose-portfolio h1 { @apply font-heading text-3xl sm:text-4xl font-medium text-foreground mt-8 mb-4; }
+  .prose-portfolio h2 { @apply font-heading text-2xl sm:text-3xl font-medium text-foreground mt-8 mb-3; }
+  .prose-portfolio h3 { @apply font-heading text-xl font-medium text-foreground mt-6 mb-2; }
+  .prose-portfolio ul { @apply list-disc pl-5 space-y-1 text-muted-foreground; }
+  .prose-portfolio ol { @apply list-decimal pl-5 space-y-1 text-muted-foreground; }
+  .prose-portfolio a {
+    @apply text-[var(--accent)] underline underline-offset-2 hover:opacity-80;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .prose-portfolio strong { @apply font-semibold text-foreground; }
+  .prose-portfolio blockquote { @apply border-l-2 border-[var(--accent)] pl-4 italic text-muted-foreground; }
+
+  /* Rich text editor (admin) */
+  .rich-text-editor .ql-toolbar { @apply rounded-t-md border border-slate-200 bg-slate-50; }
+  .rich-text-editor .ql-container { @apply rounded-b-md border border-t-0 border-slate-200 bg-white text-sm min-h-[160px]; }
+  .rich-text-editor .ql-editor { @apply p-3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

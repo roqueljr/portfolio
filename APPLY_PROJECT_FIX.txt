@@ -1,0 +1,17 @@
+Project New/Edit 404 Fix
+
+Copy this patch into the root of your portfolio-mysql project and overwrite the two existing files.
+
+Changed files:
+- src/pages/admin/ProjectEdit.jsx
+- src/api/apiClient.js
+
+Root cause fixed:
+/admin/projects/new has no :id route parameter, so useParams() returns undefined. ProjectEdit now treats a missing id as a new project.
+
+After copying, run:
+  npm run lint
+  npm run build
+  npm run dev
+
+Then test Admin > Projects > New Project > Save draft / Publish.
