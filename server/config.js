@@ -14,6 +14,14 @@ export const config = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
+
+    ssl:
+      String(process.env.DB_SSL || 'false').toLowerCase() === 'true'
+        ? {
+            minVersion: 'TLSv1.2',
+            rejectUnauthorized: true,
+          }
+        : undefined,
   },
   auth: {
     secret: process.env.AUTH_SECRET || 'development-only-change-me',
