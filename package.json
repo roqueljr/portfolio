@@ -15,7 +15,8 @@
     "admin:create": "node scripts/create-admin.js",
     "verify": "node scripts/verify-system.js",
     "db:migrate:favicon": "node scripts/migrate-favicon.js",
-    "db:migrate:admin-brand": "node scripts/migrate-admin-brand.js"
+    "db:migrate:admin-brand": "node scripts/migrate-admin-brand.js",
+    "db:migrate:contact-email": "node scripts/migrate-contact-email.js"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

@@ -19,7 +19,7 @@ import {
   hashPassword,
   verifyPassword,
 } from './auth.js';
-import { sendMail } from './mail.js';
+import { sendMail, smtpStatus } from './mail.js';
 
 assertProductionConfig();
 
@@ -69,6 +69,39 @@ function validEmail(value) {
 function parseBoolean(value) {
   if (typeof value === 'boolean') return value;
   return ['1','true','yes','on'].includes(String(value || '').toLowerCase());
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+async function getEmailPreferences() {
+  const [rows] = await pool.query('SELECT * FROM email_settings ORDER BY id ASC LIMIT 1');
+  if (rows[0]) {
+    return {
+      ...rows[0],
+      notifications_enabled: Boolean(rows[0].notifications_enabled),
+    };
+  }
+  const [result] = await pool.query('INSERT INTO email_settings (notifications_enabled) VALUES (1)');
+  const [created] = await pool.query('SELECT * FROM email_settings WHERE id = ?', [result.insertId]);
+  return { ...created[0], notifications_enabled: true };
+}
+
+async function getFallbackOwnerEmail() {
+  const [settingsRows] = await pool.query('SELECT email FROM site_settings ORDER BY id ASC LIMIT 1');
+  if (validEmail(settingsRows[0]?.email)) return normalizeEmail(settingsRows[0].email);
+  const [adminRows] = await pool.query("SELECT email FROM users WHERE role = 'admin' AND is_active = 1 ORDER BY id ASC LIMIT 1");
+  return validEmail(adminRows[0]?.email) ? normalizeEmail(adminRows[0].email) : '';
+}
+
+function cleanMailSubject(value, fallback = 'Message from portfolio') {
+  return String(value || fallback).replace(/[\r\n]+/g, ' ').trim().slice(0, 255) || fallback;
 }
 
 async function createVerificationCode(userId) {
@@ -421,9 +454,112 @@ app.put('/api/entities/:entity/:id', requireAdmin, asyncRoute(async (req, res) =
 app.delete('/api/entities/:entity/:id', requireAdmin, asyncRoute(async (req, res) => {
   const def = getEntity(req.params.entity);
   if (!def) return res.status(404).json({ error: 'Unknown entity.' });
+  if (def.table === 'contact_messages') {
+    try {
+      await pool.query('DELETE FROM contact_message_replies WHERE contact_message_id = ?', [req.params.id]);
+    } catch (error) {
+      if (error.code !== 'ER_NO_SUCH_TABLE') throw error;
+    }
+  }
   const [result] = await pool.query(`DELETE FROM \`${def.table}\` WHERE id = ?`, [req.params.id]);
   if (!result.affectedRows) return res.status(404).json({ error: 'Record not found.' });
   res.json({ ok: true, id: Number(req.params.id) || req.params.id });
+}));
+
+// ---------------- Email notifications & CMS replies ----------------
+app.get('/api/admin/email-settings', requireAdmin, asyncRoute(async (_req, res) => {
+  const settings = await getEmailPreferences();
+  const fallbackEmail = await getFallbackOwnerEmail();
+  res.json({
+    settings: {
+      notifications_enabled: Boolean(settings.notifications_enabled),
+      notification_email: settings.notification_email || '',
+      reply_signature: settings.reply_signature || '',
+    },
+    fallback_email: fallbackEmail,
+    smtp: smtpStatus(),
+  });
+}));
+
+app.put('/api/admin/email-settings', requireAdmin, asyncRoute(async (req, res) => {
+  const current = await getEmailPreferences();
+  const notificationEmail = normalizeEmail(req.body.notification_email);
+  const replySignature = String(req.body.reply_signature || '').trim().slice(0, 5000);
+  if (notificationEmail && !validEmail(notificationEmail)) return res.status(400).json({ error: 'Enter a valid notification email address.' });
+
+  await pool.query(
+    'UPDATE email_settings SET notifications_enabled = ?, notification_email = ?, reply_signature = ? WHERE id = ?',
+    [parseBoolean(req.body.notifications_enabled) ? 1 : 0, notificationEmail || null, replySignature || null, current.id]
+  );
+  const fresh = await getEmailPreferences();
+  res.json({
+    settings: {
+      notifications_enabled: Boolean(fresh.notifications_enabled),
+      notification_email: fresh.notification_email || '',
+      reply_signature: fresh.reply_signature || '',
+    },
+  });
+}));
+
+app.post('/api/admin/email-settings/test', requireAdmin, asyncRoute(async (_req, res) => {
+  const status = smtpStatus();
+  if (!status.configured) return res.status(503).json({ error: 'SMTP is not configured.' });
+  const settings = await getEmailPreferences();
+  const to = settings.notification_email || await getFallbackOwnerEmail();
+  if (!validEmail(to)) return res.status(400).json({ error: 'Set a valid notification email first.' });
+
+  const info = await sendMail({
+    to,
+    subject: 'Portfolio email test',
+    text: `Your portfolio email settings are working.\n\nSite: ${config.publicUrl}`,
+    html: `<p>Your portfolio email settings are working.</p><p><a href="${escapeHtml(config.publicUrl)}">Open portfolio</a></p>`,
+  });
+  if (!info) return res.status(503).json({ error: 'SMTP is not configured.' });
+  res.json({ ok: true, to });
+}));
+
+app.get('/api/messages/:id/replies', requireAdmin, asyncRoute(async (req, res) => {
+  const [messageRows] = await pool.query('SELECT id FROM contact_messages WHERE id = ? LIMIT 1', [req.params.id]);
+  if (!messageRows[0]) return res.status(404).json({ error: 'Message not found.' });
+  const [rows] = await pool.query('SELECT * FROM contact_message_replies WHERE contact_message_id = ? ORDER BY sent_date ASC, id ASC', [req.params.id]);
+  res.json(rows);
+}));
+
+app.post('/api/messages/:id/replies', requireAdmin, asyncRoute(async (req, res) => {
+  const status = smtpStatus();
+  if (!status.configured) return res.status(503).json({ error: 'SMTP is not configured. Open Email & Replies settings for setup instructions.' });
+
+  const [messageRows] = await pool.query('SELECT * FROM contact_messages WHERE id = ? LIMIT 1', [req.params.id]);
+  const message = messageRows[0];
+  if (!message) return res.status(404).json({ error: 'Message not found.' });
+
+  const subject = cleanMailSubject(req.body.subject, `Re: ${message.subject || 'Your inquiry'}`);
+  const body = String(req.body.body || '').trim();
+  if (!body) return res.status(400).json({ error: 'Reply message is required.' });
+  if (body.length > 10000) return res.status(400).json({ error: 'Reply is too long.' });
+
+  const settings = await getEmailPreferences();
+  const signature = String(settings.reply_signature || '').trim();
+  const finalBody = signature ? `${body}\n\n${signature}` : body;
+  const replyTo = settings.notification_email || await getFallbackOwnerEmail() || undefined;
+
+  const info = await sendMail({
+    to: message.email,
+    subject,
+    text: finalBody,
+    html: `<div style="white-space:pre-wrap;font-family:Arial,sans-serif;line-height:1.6">${escapeHtml(finalBody).replaceAll('\n', '<br>')}</div>`,
+    replyTo,
+  });
+  if (!info) return res.status(503).json({ error: 'SMTP is not configured.' });
+
+  const providerMessageId = typeof info === 'object' ? String(info.messageId || '').slice(0, 500) || null : null;
+  const [insert] = await pool.query(
+    'INSERT INTO contact_message_replies (contact_message_id,admin_user_id,to_email,subject,body,provider_message_id) VALUES (?,?,?,?,?,?)',
+    [message.id, req.user.id, message.email, subject, finalBody, providerMessageId]
+  );
+  await pool.query('UPDATE contact_messages SET `read` = 1 WHERE id = ?', [message.id]);
+  const [rows] = await pool.query('SELECT * FROM contact_message_replies WHERE id = ?', [insert.insertId]);
+  res.status(201).json(rows[0]);
 }));
 
 // ---------------- Contact form ----------------
@@ -450,18 +586,34 @@ app.post('/api/contact', contactLimiter, asyncRoute(async (req, res) => {
   );
 
   let emailSent = false;
-  const [settingsRows] = await pool.query('SELECT email FROM site_settings ORDER BY id ASC LIMIT 1');
-  const ownerEmail = settingsRows[0]?.email;
-  if (ownerEmail) {
-    const subject = payload.subject ? `New inquiry: ${payload.subject}` : 'New portfolio inquiry';
-    const text = [
-      'You received a new message from your portfolio contact form.', '',
-      `Name: ${name}`, `Email: ${email}`,
-      payload.company ? `Company: ${payload.company}` : '',
-      payload.project_type ? `Project type: ${payload.project_type}` : '',
-      payload.budget_range ? `Budget: ${payload.budget_range}` : '', '', 'Message:', message,
-    ].filter(Boolean).join('\n');
-    try { emailSent = await sendMail({ to: ownerEmail, subject, text }); } catch { emailSent = false; }
+  try {
+    const emailPrefs = await getEmailPreferences();
+    const ownerEmail = emailPrefs.notification_email || await getFallbackOwnerEmail();
+    if (emailPrefs.notifications_enabled && validEmail(ownerEmail)) {
+      const mailSubject = cleanMailSubject(payload.subject ? `New inquiry: ${payload.subject}` : 'New portfolio inquiry');
+      const adminUrl = `${config.publicUrl}/admin/messages/${result.insertId}`;
+      const text = [
+        'You received a new message from your portfolio contact form.', '',
+        `Name: ${name}`, `Email: ${email}`,
+        payload.company ? `Company: ${payload.company}` : '',
+        payload.project_type ? `Project type: ${payload.project_type}` : '',
+        payload.budget_range ? `Budget: ${payload.budget_range}` : '', '',
+        'Message:', message, '', `Open in CMS: ${adminUrl}`,
+      ].filter(Boolean).join('\n');
+      const html = `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0f172a">
+          <h2 style="margin:0 0 16px">New portfolio inquiry</h2>
+          <p><strong>Name:</strong> ${escapeHtml(name)}<br>
+          <strong>Email:</strong> ${escapeHtml(email)}${payload.company ? `<br><strong>Company:</strong> ${escapeHtml(payload.company)}` : ''}${payload.project_type ? `<br><strong>Project type:</strong> ${escapeHtml(payload.project_type)}` : ''}${payload.budget_range ? `<br><strong>Budget:</strong> ${escapeHtml(payload.budget_range)}` : ''}</p>
+          <div style="padding:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;white-space:pre-wrap">${escapeHtml(message)}</div>
+          <p style="margin-top:20px"><a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:10px 14px;background:#0f172a;color:white;text-decoration:none;border-radius:6px">Open message & reply</a></p>
+        </div>`;
+      const info = await sendMail({ to: ownerEmail, subject: mailSubject, text, html, replyTo: email });
+      emailSent = Boolean(info);
+    }
+  } catch (error) {
+    console.error('Contact notification email failed:', error.message);
+    emailSent = false;
   }
   res.status(201).json({ ok: true, id: result.insertId, emailSent });
 }));

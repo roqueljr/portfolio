@@ -1,7 +1,7 @@
 import { Outlet, Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { useSettings } from '@/lib/portfolio';
-import { LayoutDashboard, FolderKanban, Tags, Sparkles, Briefcase, GraduationCap, Award, Wrench, MessageSquare, MessagesSquare, Settings, ExternalLink, LogOut, Link2, Route, UserRound } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Tags, Sparkles, Briefcase, GraduationCap, Award, Wrench, MessageSquare, MessagesSquare, Settings, ExternalLink, LogOut, Link2, Route, UserRound, MailCheck } from 'lucide-react';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -16,6 +16,7 @@ const NAV = [
   { to: '/admin/testimonials', label: 'Testimonials', icon: MessageSquare },
   { to: '/admin/social-links', label: 'Social Links', icon: Link2 },
   { to: '/admin/messages', label: 'Messages', icon: MessagesSquare },
+  { to: '/admin/email', label: 'Email & Replies', icon: MailCheck },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
   { to: '/admin/account', label: 'Account', icon: UserRound },
 ];

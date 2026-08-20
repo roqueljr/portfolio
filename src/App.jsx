@@ -37,6 +37,7 @@ import AdminMessages from '@/pages/admin/Messages';
 import MessageDetail from '@/pages/admin/MessageDetail';
 import AdminSettings from '@/pages/admin/Settings';
 import AdminAccount from '@/pages/admin/Account';
+import EmailSettings from '@/pages/admin/EmailSettings';
 
 const GuestOnlyRoute = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
@@ -99,6 +100,7 @@ const AuthenticatedApp = () => {
           <Route path="messages/:id" element={<MessageDetail />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="account" element={<AdminAccount />} />
+          <Route path="email" element={<EmailSettings />} />
         </Route>
       </Route>
 

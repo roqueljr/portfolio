@@ -103,6 +103,21 @@ export const api = {
       window.location.href = `${API_BASE}/auth/google/start?returnTo=${encodeURIComponent(returnTo)}`;
     },
   },
+  email: {
+    settings: () => request('/admin/email-settings'),
+    updateSettings: (data) => request('/admin/email-settings', { method: 'PUT', body: data }),
+    sendTest: () => request('/admin/email-settings/test', { method: 'POST' }),
+  },
+  messages: {
+    replies: (id) => {
+      const safeId = requireEntityId(id, 'load replies for', 'ContactMessage');
+      return request(`/messages/${encodeURIComponent(safeId)}/replies`);
+    },
+    reply: (id, data) => {
+      const safeId = requireEntityId(id, 'reply to', 'ContactMessage');
+      return request(`/messages/${encodeURIComponent(safeId)}/replies`, { method: 'POST', body: data });
+    },
+  },
   integrations: {
     Core: {
       async UploadFile({ file }) {

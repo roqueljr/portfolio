@@ -16,9 +16,27 @@ function getTransporter() {
   return transporter;
 }
 
-export async function sendMail({ to, subject, text, html }) {
+export function smtpStatus() {
+  return {
+    configured: Boolean(config.smtp.host && config.smtp.from),
+    from: config.smtp.from || '',
+    host: config.smtp.host || '',
+    port: config.smtp.port,
+    secure: config.smtp.secure,
+  };
+}
+
+export async function sendMail({ to, subject, text, html, replyTo, from, headers }) {
   const tx = getTransporter();
   if (!tx) return false;
-  await tx.sendMail({ from: config.smtp.from, to, subject, text, html });
-  return true;
+  const info = await tx.sendMail({
+    from: from || config.smtp.from,
+    to,
+    subject,
+    text,
+    html,
+    replyTo,
+    headers,
+  });
+  return info || true;
 }
