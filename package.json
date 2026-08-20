@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "db:init": "node scripts/init-db.js",
     "admin:create": "node scripts/create-admin.js",
-    "verify": "node scripts/verify-system.js"
+    "verify": "node scripts/verify-system.js",
+    "db:migrate:favicon": "node scripts/migrate-favicon.js"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

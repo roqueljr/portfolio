@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-d
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import ScrollToTop from './components/ScrollToTop';
+import SiteFavicon from '@/components/SiteFavicon';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PortfolioShell from '@/components/portfolio/PortfolioShell';
 import AdminLayout from '@/components/admin/AdminLayout';
@@ -110,6 +111,7 @@ function App() {
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
+        <SiteFavicon />
         <Router>
           <ScrollToTop />
           <AuthenticatedApp />

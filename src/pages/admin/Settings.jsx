@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/apiClient';
-import { Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { Save, Loader2, CheckCircle2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,7 @@ import RichTextEditor from '@/components/admin/RichTextEditor';
 import { defaultSettings } from '@/lib/portfolio';
 
 export default function AdminSettings() {
+  const queryClient = useQueryClient();
   const [data, setData] = useState(defaultSettings);
   const [recordId, setRecordId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +43,8 @@ export default function AdminSettings() {
         setRecordId(created.id);
       }
       setSaved(true);
+      queryClient.setQueryData(['siteSettings'], { ...defaultSettings, ...data, id: recordId });
+      await queryClient.invalidateQueries({ queryKey: ['siteSettings'] });
       document.documentElement.style.setProperty('--accent', data.accent_color);
     } catch (e) { alert(e?.message || 'Failed to save settings.'); }
     finally { setSaving(false); }
@@ -117,7 +121,8 @@ export default function AdminSettings() {
         </Section>
 
         <Section title="Appearance & Assets">
-          <div className="grid sm:grid-cols-2 gap-4">
+          <FaviconField value={data.favicon || ''} onChange={(v) => set('favicon', v)} />
+          <div className="grid sm:grid-cols-2 gap-4 mt-5">
             <Field label="Accent Color">
               <div className="flex items-center gap-3">
                 <input type="color" value={data.accent_color} onChange={(e) => set('accent_color', e.target.value)} className="w-12 h-10 rounded border border-slate-200 cursor-pointer" />
@@ -150,6 +155,104 @@ export default function AdminSettings() {
       </div>
     </div>
   );
+}
+
+
+function FaviconField({ value, onChange }) {
+  const [error, setError] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    setError('');
+
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      setError('Use a PNG, JPG, or WebP image.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError('Please choose an image under 2MB.');
+      return;
+    }
+
+    setProcessing(true);
+    try {
+      const dataUrl = await resizeFavicon(file);
+      onChange(dataUrl);
+    } catch {
+      setError('Could not process this image. Please try another file.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div>
+      <Label className="admin-label">Browser Tab Icon / Favicon</Label>
+      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 p-4">
+        <div className="w-14 h-14 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+          {value ? <img src={value} alt="Favicon preview" className="w-10 h-10 object-contain" /> : <span className="text-[10px] text-slate-400 text-center px-1">No icon</span>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-700">Website browser icon</p>
+          <p className="text-xs text-slate-500 mt-1">Upload a square PNG, JPG, or WebP. It is resized to 128×128 and stored in the database, so it survives Render redeploys.</p>
+          {error && <p className="text-xs text-red-600 mt-2">{error}</p>}
+          <div className="flex items-center gap-2 mt-3">
+            <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-slate-200 bg-white text-xs font-medium cursor-pointer hover:bg-slate-50">
+              {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+              {value ? 'Replace icon' : 'Upload icon'}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={processing}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  handleFile(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {value && (
+              <button type="button" onClick={() => onChange('')} className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-red-600">
+                <X className="w-3.5 h-3.5" /> Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function resizeFavicon(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const size = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas is unavailable.'));
+
+        ctx.clearRect(0, 0, size, size);
+        const scale = Math.min(size / img.width, size / img.height);
+        const width = img.width * scale;
+        const height = img.height * scale;
+        const x = (size - width) / 2;
+        const y = (size - height) / 2;
+        ctx.drawImage(img, x, y, width, height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function Section({ title, children }) {

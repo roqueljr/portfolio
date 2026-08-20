@@ -11,6 +11,7 @@ export const defaultSettings = {
   professional_summary: '',
   profile_picture: '',
   logo: '',
+  favicon: '',
   email: 'hello@example.com',
   phone: '',
   location: 'Earth',
