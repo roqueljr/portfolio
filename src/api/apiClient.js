@@ -86,6 +86,7 @@ export const api = {
   auth: {
     me: () => request('/auth/me'),
     loginViaEmailPassword: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
+    updateAccount: (data) => request('/auth/account', { method: 'PUT', body: data }),
     logout: () => request('/auth/logout', { method: 'POST' }),
     register: (data) => request('/auth/register', { method: 'POST', body: data }),
     verifyOtp: (data) => request('/auth/verify-otp', { method: 'POST', body: data }),

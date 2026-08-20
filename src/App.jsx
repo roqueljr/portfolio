@@ -36,6 +36,7 @@ import AdminSocialLinks from '@/pages/admin/SocialLinks';
 import AdminMessages from '@/pages/admin/Messages';
 import MessageDetail from '@/pages/admin/MessageDetail';
 import AdminSettings from '@/pages/admin/Settings';
+import AdminAccount from '@/pages/admin/Account';
 
 const GuestOnlyRoute = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
@@ -97,6 +98,7 @@ const AuthenticatedApp = () => {
           <Route path="messages" element={<AdminMessages />} />
           <Route path="messages/:id" element={<MessageDetail />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="account" element={<AdminAccount />} />
         </Route>
       </Route>
 

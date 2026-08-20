@@ -121,6 +121,15 @@ export default function AdminSettings() {
         </Section>
 
         <Section title="Appearance & Assets">
+          <Field label="Admin CMS Name">
+            <Input
+              value={data.admin_brand_name || ''}
+              onChange={(e) => set('admin_brand_name', e.target.value)}
+              placeholder="Atelier CMS"
+              maxLength={120}
+            />
+          </Field>
+          <p className="text-xs text-slate-400 mt-1 mb-5">Shown in the admin sidebar and mobile admin header. Leave blank to use “Atelier CMS”.</p>
           <FaviconField value={data.favicon || ''} onChange={(v) => set('favicon', v)} />
           <div className="grid sm:grid-cols-2 gap-4 mt-5">
             <Field label="Accent Color">

@@ -12,6 +12,7 @@ export const defaultSettings = {
   profile_picture: '',
   logo: '',
   favicon: '',
+  admin_brand_name: 'Atelier CMS',
   email: 'hello@example.com',
   phone: '',
   location: 'Earth',

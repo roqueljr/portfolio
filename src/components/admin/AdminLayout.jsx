@@ -1,6 +1,7 @@
-import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { LayoutDashboard, FolderKanban, Tags, Sparkles, Briefcase, GraduationCap, Award, Wrench, MessageSquare, MessagesSquare, Settings, ExternalLink, LogOut, Link2, Route } from 'lucide-react';
+import { useSettings } from '@/lib/portfolio';
+import { LayoutDashboard, FolderKanban, Tags, Sparkles, Briefcase, GraduationCap, Award, Wrench, MessageSquare, MessagesSquare, Settings, ExternalLink, LogOut, Link2, Route, UserRound } from 'lucide-react';
 
 const NAV = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -16,11 +17,13 @@ const NAV = [
   { to: '/admin/social-links', label: 'Social Links', icon: Link2 },
   { to: '/admin/messages', label: 'Messages', icon: MessagesSquare },
   { to: '/admin/settings', label: 'Settings', icon: Settings },
+  { to: '/admin/account', label: 'Account', icon: UserRound },
 ];
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { data: settings } = useSettings();
+  const cmsName = settings?.admin_brand_name?.trim() || 'Atelier CMS';
 
   const handleLogout = async () => {
     await logout(false);
@@ -32,9 +35,9 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="hidden lg:flex w-64 flex-col fixed inset-y-0 left-0 bg-white border-r border-slate-200">
         <div className="h-16 flex items-center px-6 border-b border-slate-200">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/admin" className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[var(--accent)]" />
-            <span className="font-semibold tracking-tight">Atelier CMS</span>
+            <span className="font-semibold tracking-tight truncate">{cmsName}</span>
           </Link>
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
@@ -55,6 +58,7 @@ export default function AdminLayout() {
           ))}
         </nav>
         <div className="p-3 border-t border-slate-200 space-y-1">
+          {user?.email && <div className="px-3 pb-1 text-[11px] text-slate-400 truncate" title={user.email}>{user.email}</div>}
           <Link to="/" target="_blank" className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-600 hover:bg-slate-100">
             <ExternalLink className="w-4 h-4" /> View site
           </Link>
@@ -66,7 +70,7 @@ export default function AdminLayout() {
 
       {/* Mobile top bar */}
       <div className="lg:hidden fixed top-0 inset-x-0 z-40 h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4">
-        <Link to="/admin" className="font-semibold">Atelier CMS</Link>
+        <Link to="/admin" className="font-semibold max-w-[55vw] truncate">{cmsName}</Link>
         <div className="flex items-center gap-2">
           <Link to="/" target="_blank" className="p-2"><ExternalLink className="w-4 h-4" /></Link>
           <button onClick={handleLogout} className="p-2"><LogOut className="w-4 h-4" /></button>

@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS site_settings (
   profile_picture TEXT NULL,
   logo TEXT NULL,
   favicon LONGTEXT NULL,
+  admin_brand_name VARCHAR(120) NULL,
   email VARCHAR(255) NULL,
   phone VARCHAR(100) NULL,
   location VARCHAR(255) NULL,

@@ -12,7 +12,7 @@ const entity = (table, fields, options = {}) => ({
 
 export const entities = {
   SiteSettings: entity('site_settings', [
-    'full_name','short_name','professional_title','tagline','biography','professional_summary','profile_picture','logo','favicon','email','phone','location','years_experience','availability_status','availability_message','hero_heading','hero_introduction','accent_color','resume_url','default_seo_image','seo_title','seo_description','footer_cta_heading','footer_cta_subheading','interests','personal_statement'
+    'full_name','short_name','professional_title','tagline','biography','professional_summary','profile_picture','logo','favicon','admin_brand_name','email','phone','location','years_experience','availability_status','availability_message','hero_heading','hero_introduction','accent_color','resume_url','default_seo_image','seo_title','seo_description','footer_cta_heading','footer_cta_subheading','interests','personal_statement'
   ], { required: ['full_name'], json: ['interests'], booleans: ['availability_status'] }),
 
   SocialLink: entity('social_links', ['platform','url','icon','display_order','enabled'], {

@@ -113,6 +113,48 @@ app.post('/api/auth/logout', (_req, res) => {
   res.json({ ok: true });
 });
 
+app.put('/api/auth/account', authLimiter, requireAdmin, asyncRoute(async (req, res) => {
+  const currentPassword = String(req.body.current_password || '');
+  const requestedEmail = normalizeEmail(req.body.email || req.user.email);
+  const newPassword = String(req.body.new_password || '');
+
+  if (!currentPassword) return res.status(400).json({ error: 'Current password is required.' });
+  if (!validEmail(requestedEmail)) return res.status(400).json({ error: 'A valid email is required.' });
+  if (newPassword && newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+
+  const [rows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [req.user.id]);
+  const user = rows[0];
+  if (!user || !user.is_active) return res.status(401).json({ error: 'Account is unavailable.' });
+  if (!(await verifyPassword(currentPassword, user.password_hash))) {
+    return res.status(401).json({ error: 'Current password is incorrect.' });
+  }
+
+  const updates = [];
+  const values = [];
+
+  if (requestedEmail !== normalizeEmail(user.email)) {
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1', [requestedEmail, user.id]);
+    if (existing[0]) return res.status(409).json({ error: 'That email address is already in use.' });
+    updates.push('email = ?');
+    values.push(requestedEmail);
+  }
+
+  if (newPassword) {
+    updates.push('password_hash = ?');
+    values.push(await hashPassword(newPassword));
+  }
+
+  if (!updates.length) {
+    return res.json({ user: publicUser(user), changed: false });
+  }
+
+  await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, [...values, user.id]);
+  const [freshRows] = await pool.query('SELECT * FROM users WHERE id = ? LIMIT 1', [user.id]);
+  const freshUser = freshRows[0];
+  setSessionCookie(res, freshUser);
+  res.json({ user: publicUser(freshUser), changed: true });
+}));
+
 app.post('/api/auth/register', authLimiter, asyncRoute(async (req, res) => {
   const email = normalizeEmail(req.body.email);
   const password = String(req.body.password || '');
