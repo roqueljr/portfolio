@@ -26,6 +26,15 @@ export const config = {
     tokenDays: Number(process.env.AUTH_TOKEN_DAYS || 7),
     requireEmailVerification: String(process.env.AUTH_REQUIRE_EMAIL_VERIFICATION || 'false').toLowerCase() === 'true',
   },
+
+  // Preferred on Render Free: HTTPS email API (port 443).
+  brevo: {
+    apiKey: process.env.BREVO_API_KEY || '',
+    fromEmail: process.env.BREVO_FROM_EMAIL || '',
+    fromName: process.env.BREVO_FROM_NAME || 'Portfolio',
+  },
+
+  // SMTP fallback for local development or paid hosts that allow SMTP ports.
   smtp: {
     host: process.env.SMTP_HOST || '',
     port: Number(process.env.SMTP_PORT || 587),

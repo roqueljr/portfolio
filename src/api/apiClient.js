@@ -10,21 +10,57 @@ class ApiError extends Error {
 }
 
 async function request(path, options = {}) {
-  const { method = 'GET', body, formData, headers = {} } = options;
-  const response = await fetch(`${API_BASE}${path}`, {
-    method,
-    credentials: 'include',
-    headers: formData ? headers : { 'Content-Type': 'application/json', ...headers },
-    body: formData || (body === undefined ? undefined : JSON.stringify(body)),
-  });
+  const {
+    method = 'GET',
+    body,
+    formData,
+    headers = {},
+    timeoutMs = 0,
+  } = options;
 
-  const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json') ? await response.json() : await response.text();
-  if (!response.ok) {
-    const message = typeof data === 'object' ? (data.error || data.message) : data;
-    throw new ApiError(message || `Request failed (${response.status})`, response.status, data);
+  const controller = timeoutMs > 0 ? new AbortController() : null;
+  const timer = controller
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : null;
+
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method,
+      credentials: 'include',
+      headers: formData ? headers : { 'Content-Type': 'application/json', ...headers },
+      body: formData || (body === undefined ? undefined : JSON.stringify(body)),
+      signal: controller?.signal,
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
+
+    if (!response.ok) {
+      const message = typeof data === 'object'
+        ? (data.error || data.message)
+        : data;
+      throw new ApiError(
+        message || `Request failed (${response.status})`,
+        response.status,
+        data
+      );
+    }
+
+    return data;
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new ApiError(
+        'The email request timed out. Please try again.',
+        408,
+        { error: 'Request timed out.' }
+      );
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  return data;
 }
 
 function requireEntityId(id, action, entityName) {
@@ -106,7 +142,10 @@ export const api = {
   email: {
     settings: () => request('/admin/email-settings'),
     updateSettings: (data) => request('/admin/email-settings', { method: 'PUT', body: data }),
-    sendTest: () => request('/admin/email-settings/test', { method: 'POST' }),
+    sendTest: () => request('/admin/email-settings/test', {
+      method: 'POST',
+      timeoutMs: 20000,
+    }),
   },
   messages: {
     replies: (id) => {
@@ -115,7 +154,11 @@ export const api = {
     },
     reply: (id, data) => {
       const safeId = requireEntityId(id, 'reply to', 'ContactMessage');
-      return request(`/messages/${encodeURIComponent(safeId)}/replies`, { method: 'POST', body: data });
+      return request(`/messages/${encodeURIComponent(safeId)}/replies`, {
+        method: 'POST',
+        body: data,
+        timeoutMs: 20000,
+      });
     },
   },
   integrations: {
@@ -129,7 +172,13 @@ export const api = {
   },
   functions: {
     invoke(name, body) {
-      if (name === 'submitContact') return request('/contact', { method: 'POST', body });
+      if (name === 'submitContact') {
+        return request('/contact', {
+          method: 'POST',
+          body,
+          timeoutMs: 25000,
+        });
+      }
       throw new Error(`Unknown function: ${name}`);
     },
   },
